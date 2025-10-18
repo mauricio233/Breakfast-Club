@@ -1,4 +1,4 @@
-"""
+
 # api.py
 from fastapi import FastAPI
 from planner import Needs, compute_quantities, cost_by_super, DEFAULT_PRICES
