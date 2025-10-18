@@ -107,4 +107,4 @@ def compute_quantities(needs: Needs) -> Quantities:
         "Butter (250 g)": 50.0 * scale,
     }
 
-    milk_total_L = mon["Milk (1 L)"] + tue["Milk (1 L)"] + (waffles["Milk for waffles]()
+    milk_total_L = mon["Milk (1 L)"] + tue["Milk (1 L)"] + (waffles["Milk for waffles (ml)"] / 1000.0)
