@@ -20,30 +20,25 @@ PRICES = {
 
 # --- 🧇 Receta de waffles (por cada 10 niños) ---
 WAFFLE_RECIPE = {
-    "flour": 500,          # gramos
-    "eggs": 4,             # unidades
-    "milk": 500,           # mililitros
-    "sugar": 50,           # gramos
-    "baking_powder": 10,   # gramos
-    "butter": 50           # gramos
+    "flour": 500,
+    "eggs": 4,
+    "milk": 500,
+    "sugar": 50,
+    "baking_powder": 10,
+    "butter": 50
 }
 
 @app.get("/")
 def home():
     """Ruta principal: muestra estado del servicio."""
-    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.0.0"}
+    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.0.1"}
 
 @app.get("/jit/plan")
 def plan(mon: int, tue: int, live: bool = False):
-    """
-    Calcula las cantidades y costos del Breakfast Club.
-    Parámetros:
-      - mon: número de niños lunes
-      - tue: número de niños martes
-    """
-    safety_margin = 1.10  # 10% de margen extra
+    """Calcula las cantidades y costos del Breakfast Club."""
+    safety_margin = 1.10
 
-    # --- 🥣 Lunes ---
+    # --- Lunes ---
     monday_items = {
         "milk": mon * 0.25,
         "tea": mon * 0.02,
@@ -53,21 +48,20 @@ def plan(mon: int, tue: int, live: bool = False):
         "yogurt": mon * 1
     }
 
-    # --- 🧇 Martes ---
+    # --- Martes ---
     t_factor = tue / 10
     waffle = {k: v * t_factor for k, v in WAFFLE_RECIPE.items()}
-
     tuesday_items = {
-        "milk": tue * 0.25 + waffle["milk"] / 1000,   # ml → L
+        "milk": tue * 0.25 + waffle["milk"] / 1000,
         "tea": tue * 0.02,
         "fruit": tue * 1,
         "oats": tue * 1,
         "yogurt": tue * 1,
-        "flour": waffle["flour"] / 1000,              # g → kg
+        "flour": waffle["flour"] / 1000,
         "eggs": waffle["eggs"],
-        "sugar": waffle["sugar"] / 1000,              # g → kg
-        "baking_powder": waffle["baking_powder"] / 100,  # g → 100 g
-        "butter": waffle["butter"] / 250              # g → 250 g
+        "sugar": waffle["sugar"] / 1000,
+        "baking_powder": waffle["baking_powder"] / 100,
+        "butter": waffle["butter"] / 250
     }
 
     # --- Margen de seguridad ---
@@ -83,7 +77,7 @@ def plan(mon: int, tue: int, live: bool = False):
 
     cheapest = min(totals, key=totals.get)
 
-    # --- ✉️ Generar borrador de email ---
+    # --- ✉️ Borrador de email ---
     week = date.today().strftime("%Y-%m-%d")
     email_subject = f"Breakfast Club – Weekly Shopping Plan (Week of {week})"
     email_body = (
@@ -97,14 +91,13 @@ def plan(mon: int, tue: int, live: bool = False):
         f"- Monday: milk, tea, bread, fruit, oats, yogurt\n"
         f"- Tuesday: milk, tea, fruit, oats, yogurt, waffles (homemade)\n\n"
         f"Estimated costs (with 10% safety margin):\n"
-        f"- Pak'nSave: ${totals['Pak\\'nSave']:.2f}\n"
+        f"- Pak'nSave: ${totals[\"Pak'nSave\"]:.2f}\n"
         f"- New World: ${totals['New World']:.2f}\n"
         f"- Countdown: ${totals['Countdown']:.2f}\n\n"
         f"Cheapest option: {cheapest}\n\n"
         f"Please confirm or reply with changes.\n\nThanks!\n"
     )
 
-    # --- Respuesta final ---
     return {
         "attendance": {"monday": mon, "tuesday": tue},
         "monday_items": monday_items,
