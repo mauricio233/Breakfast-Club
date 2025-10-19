@@ -31,7 +31,7 @@ WAFFLE_RECIPE = {
 @app.get("/")
 def home():
     """Ruta principal: muestra estado del servicio."""
-    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.0.1"}
+    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.0.2"}
 
 @app.get("/jit/plan")
 def plan(mon: int, tue: int, live: bool = False):
@@ -80,23 +80,31 @@ def plan(mon: int, tue: int, live: bool = False):
     # --- ✉️ Borrador de email ---
     week = date.today().strftime("%Y-%m-%d")
     email_subject = f"Breakfast Club – Weekly Shopping Plan (Week of {week})"
-    email_body = (
-        f"To: mavisi036@gmail.com\n"
-        f"Subject: {email_subject}\n\n"
-        f"Hi team,\n\n"
-        f"This week's attendance assumption:\n"
-        f"- Monday: {mon} children\n"
-        f"- Tuesday: {tue} children\n\n"
-        f"Shopping list:\n"
-        f"- Monday: milk, tea, bread, fruit, oats, yogurt\n"
-        f"- Tuesday: milk, tea, fruit, oats, yogurt, waffles (homemade)\n\n"
-        f"Estimated costs (with 10% safety margin):\n"
-        f"- Pak'nSave: ${totals[\"Pak'nSave\"]:.2f}\n"
-        f"- New World: ${totals['New World']:.2f}\n"
-        f"- Countdown: ${totals['Countdown']:.2f}\n\n"
-        f"Cheapest option: {cheapest}\n\n"
-        f"Please confirm or reply with changes.\n\nThanks!\n"
-    )
+
+    email_body = f"""To: mavisi036@gmail.com
+Subject: {email_subject}
+
+Hi team,
+
+This week's attendance assumption:
+- Monday: {mon} children
+- Tuesday: {tue} children
+
+Shopping list:
+- Monday: milk, tea, bread, fruit, oats, yogurt
+- Tuesday: milk, tea, fruit, oats, yogurt, waffles (homemade)
+
+Estimated costs (with 10% safety margin):
+- Pak'nSave: ${totals["Pak'nSave"]:.2f}
+- New World: ${totals["New World"]:.2f}
+- Countdown: ${totals["Countdown"]:.2f}
+
+Cheapest option: {cheapest}
+
+Please confirm or reply with changes.
+
+Thanks!
+"""
 
     return {
         "attendance": {"monday": mon, "tuesday": tue},
