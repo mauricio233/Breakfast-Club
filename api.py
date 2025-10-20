@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from datetime import date
+from typing import Dict
 
-app = FastAPI(title="Breakfast Club Planner")
+app = FastAPI(title="Breakfast Club Planner", version="1.2.0")
 
 # --- 💰 Precios base (NZD) ---
 PRICES = {
@@ -28,17 +29,32 @@ WAFFLE_RECIPE = {
     "butter": 50
 }
 
+# --- 🔹 Calorías y nutrición ---
+EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health guideline
+
+CALORIES = {
+    "milk": 640, "yogurt": 60, "cheese": 90, "chicken": 165,
+    "bread": 80, "bread_roll": 120, "hashbrown": 130, "pancake": 110,
+    "fruit": 70, "oats": 150, "cereal": 120, "butter": 35, "milo": 120,
+    "jam": 20, "maple_syrup": 18, "choc_chips": 50, "berries": 40
+}
+
+# -------------------------
+# ROUTES
+# -------------------------
+
 @app.get("/")
 def home():
-    """Ruta principal: muestra estado del servicio."""
-    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.0.2"}
+    """Check API status."""
+    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.2.0"}
 
+
+# --- 📅 Weekly Plan ---
 @app.get("/jit/plan")
 def plan(mon: int, tue: int, live: bool = False):
-    """Calcula las cantidades y costos del Breakfast Club."""
+    """Calculate quantities and costs for Breakfast Club."""
     safety_margin = 1.10
 
-    # --- Lunes ---
     monday_items = {
         "milk": mon * 0.25,
         "tea": mon * 0.02,
@@ -48,7 +64,6 @@ def plan(mon: int, tue: int, live: bool = False):
         "yogurt": mon * 1
     }
 
-    # --- Martes ---
     t_factor = tue / 10
     waffle = {k: v * t_factor for k, v in WAFFLE_RECIPE.items()}
     tuesday_items = {
@@ -64,11 +79,9 @@ def plan(mon: int, tue: int, live: bool = False):
         "butter": waffle["butter"] / 250
     }
 
-    # --- Margen de seguridad ---
     monday_items = {k: v * safety_margin for k, v in monday_items.items()}
     tuesday_items = {k: v * safety_margin for k, v in tuesday_items.items()}
 
-    # --- Calcular costos ---
     totals = {store: 0 for store in ["Pak'nSave", "New World", "Countdown"]}
     for store in totals:
         for item, qty in {**monday_items, **tuesday_items}.items():
@@ -76,11 +89,9 @@ def plan(mon: int, tue: int, live: bool = False):
                 totals[store] += PRICES[item][store] * qty
 
     cheapest = min(totals, key=totals.get)
-
-    # --- ✉️ Borrador de email ---
     week = date.today().strftime("%Y-%m-%d")
-    email_subject = f"Breakfast Club – Weekly Shopping Plan (Week of {week})"
 
+    email_subject = f"Breakfast Club – Weekly Shopping Plan (Week of {week})"
     email_body = f"""To: mavisi036@gmail.com
 Subject: {email_subject}
 
@@ -94,7 +105,7 @@ Shopping list:
 - Monday: milk, tea, bread, fruit, oats, yogurt
 - Tuesday: milk, tea, fruit, oats, yogurt, waffles (homemade)
 
-Estimated costs (with 10% safety margin):
+Estimated costs (10% safety margin):
 - Pak'nSave: ${totals["Pak'nSave"]:.2f}
 - New World: ${totals["New World"]:.2f}
 - Countdown: ${totals["Countdown"]:.2f}
@@ -112,93 +123,28 @@ Thanks!
         "tuesday_items": tuesday_items,
         "totals": totals,
         "cheapest": cheapest,
-        "email": {
-            "to": "mavisi036@gmail.com",
-            "subject": email_subject,
-            "body": email_body
-        }
+        "email": {"to": "mavisi036@gmail.com", "subject": email_subject, "body": email_body}
     }
-from fastapi import FastAPI
-from typing import Dict
-
-app = FastAPI(title="Breakfast Club Planner", version="1.1.0")
-
-# -------------------------
-# CONFIGURATION CONSTANTS
-# -------------------------
-
-EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health guideline
-
-# Energy content (kcal per unit)
-CALORIES = {
-    "milk": 640,             # per 1 L
-    "yogurt": 60,            # per 100 g
-    "cheese": 90,            # per 25 g
-    "chicken": 165,          # per 100 g
-    "bread": 80,             # per slice
-    "bread_roll": 120,       # per roll
-    "hashbrown": 130,        # per unit
-    "pancake": 110,          # per small pancake
-    "fruit": 70,             # per unit
-    "oats": 150,             # per 40 g portion
-    "cereal": 120,           # per 30 g portion
-    "butter": 35,            # per 5 g
-    "milo": 120,             # per 200 ml
-    "jam": 20,               # per tsp
-    "maple_syrup": 18,       # per tsp
-    "choc_chips": 50,        # per tbsp
-    "berries": 40            # per 50 g
-}
-
-# -------------------------
-# ROUTES
-# -------------------------
-
-@app.get("/")
-def home():
-    """Check API status."""
-    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.1.0"}
 
 
+# --- 🍽️ Record consumption and nutrition analysis ---
 @app.post("/jit/consumption")
 def record_consumption(data: Dict):
-    """
-    Record consumption for the week and calculate energy balance.
-    Example input:
-    {
-        "day": "monday",
-        "children": 30,
-        "items": {
-            "milk": 8,
-            "bread": 15,
-            "yogurt": 2,
-            "fruit": 20,
-            "hashbrown": 10
-        }
-    }
-    """
-
+    """Record daily consumption and calculate caloric balance."""
     day = data.get("day", "unspecified").capitalize()
     children = data.get("children", 0)
     items = data.get("items", {})
 
-    # --- 1️⃣ Expected energy requirement ---
     expected_total_kcal = children * EXPECTED_KCAL_PER_CHILD
-
-    # --- 2️⃣ Actual energy intake calculation ---
     actual_total_kcal = 0
     detail = {}
+
     for food, qty in items.items():
         kcal_per_unit = CALORIES.get(food, 0)
         kcal_total = qty * kcal_per_unit
-        detail[food] = {
-            "quantity": qty,
-            "kcal_each": kcal_per_unit,
-            "kcal_total": kcal_total
-        }
+        detail[food] = {"quantity": qty, "kcal_each": kcal_per_unit, "kcal_total": kcal_total}
         actual_total_kcal += kcal_total
 
-    # --- 3️⃣ Summary ---
     avg_per_child = actual_total_kcal / children if children > 0 else 0
     percent_of_target = (avg_per_child / EXPECTED_KCAL_PER_CHILD * 100) if children > 0 else 0
 
