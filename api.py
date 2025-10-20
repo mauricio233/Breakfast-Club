@@ -118,3 +118,96 @@ Thanks!
             "body": email_body
         }
     }
+from fastapi import FastAPI
+from typing import Dict
+
+app = FastAPI(title="Breakfast Club Planner", version="1.1.0")
+
+# -------------------------
+# CONFIGURATION CONSTANTS
+# -------------------------
+
+EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health guideline
+
+# Energy content (kcal per unit)
+CALORIES = {
+    "milk": 640,             # per 1 L
+    "yogurt": 60,            # per 100 g
+    "cheese": 90,            # per 25 g
+    "chicken": 165,          # per 100 g
+    "bread": 80,             # per slice
+    "bread_roll": 120,       # per roll
+    "hashbrown": 130,        # per unit
+    "pancake": 110,          # per small pancake
+    "fruit": 70,             # per unit
+    "oats": 150,             # per 40 g portion
+    "cereal": 120,           # per 30 g portion
+    "butter": 35,            # per 5 g
+    "milo": 120,             # per 200 ml
+    "jam": 20,               # per tsp
+    "maple_syrup": 18,       # per tsp
+    "choc_chips": 50,        # per tbsp
+    "berries": 40            # per 50 g
+}
+
+# -------------------------
+# ROUTES
+# -------------------------
+
+@app.get("/")
+def home():
+    """Check API status."""
+    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.1.0"}
+
+
+@app.post("/jit/consumption")
+def record_consumption(data: Dict):
+    """
+    Record consumption for the week and calculate energy balance.
+    Example input:
+    {
+        "day": "monday",
+        "children": 30,
+        "items": {
+            "milk": 8,
+            "bread": 15,
+            "yogurt": 2,
+            "fruit": 20,
+            "hashbrown": 10
+        }
+    }
+    """
+
+    day = data.get("day", "unspecified").capitalize()
+    children = data.get("children", 0)
+    items = data.get("items", {})
+
+    # --- 1️⃣ Expected energy requirement ---
+    expected_total_kcal = children * EXPECTED_KCAL_PER_CHILD
+
+    # --- 2️⃣ Actual energy intake calculation ---
+    actual_total_kcal = 0
+    detail = {}
+    for food, qty in items.items():
+        kcal_per_unit = CALORIES.get(food, 0)
+        kcal_total = qty * kcal_per_unit
+        detail[food] = {
+            "quantity": qty,
+            "kcal_each": kcal_per_unit,
+            "kcal_total": kcal_total
+        }
+        actual_total_kcal += kcal_total
+
+    # --- 3️⃣ Summary ---
+    avg_per_child = actual_total_kcal / children if children > 0 else 0
+    percent_of_target = (avg_per_child / EXPECTED_KCAL_PER_CHILD * 100) if children > 0 else 0
+
+    return {
+        "day": day,
+        "children": children,
+        "expected_total_kcal": round(expected_total_kcal, 1),
+        "actual_total_kcal": round(actual_total_kcal, 1),
+        "average_per_child": round(avg_per_child, 1),
+        "percent_of_target": round(percent_of_target, 1),
+        "details": detail
+    }
