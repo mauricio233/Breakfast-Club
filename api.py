@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from datetime import date
 from typing import Dict
 
-app = FastAPI(title="Breakfast Club Planner", version="1.3.0")
+app = FastAPI(title="Breakfast Club Planner", version="1.4.0")
 
 # --- 💰 Base Prices (NZD) ---
 PRICES = {
@@ -11,7 +11,7 @@ PRICES = {
     "bread": {"Pak'nSave": 0.50, "New World": 0.55, "Countdown": 0.60},
     "fruit": {"Pak'nSave": 0.60, "New World": 0.65, "Countdown": 0.70},
     "oats": {"Pak'nSave": 0.80, "New World": 0.85, "Countdown": 0.90},
-    "yogurt": {"Pak'nSave": 4.50, "New World": 4.80, "Countdown": 5.00},  # per litre
+    "yogurt": {"Pak'nSave": 0.90, "New World": 0.95, "Countdown": 1.00},
     "flour": {"Pak'nSave": 2.50, "New World": 2.70, "Countdown": 2.80},
     "eggs": {"Pak'nSave": 0.90, "New World": 1.00, "Countdown": 1.10},
     "sugar": {"Pak'nSave": 2.80, "New World": 3.00, "Countdown": 3.10},
@@ -19,7 +19,7 @@ PRICES = {
     "butter": {"Pak'nSave": 5.00, "New World": 5.50, "Countdown": 5.80}
 }
 
-# --- 🧇 Waffle recipe (per 10 children) ---
+# --- 🧇 Waffle Recipe (per 10 children) ---
 WAFFLE_RECIPE = {
     "flour": 500,
     "eggs": 4,
@@ -29,42 +29,14 @@ WAFFLE_RECIPE = {
     "butter": 50
 }
 
-# --- 🔹 Nutrition data ---
-EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health recommendation
+# --- 🔹 Nutrition and Calories ---
+EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health guideline
 
 CALORIES = {
-    "milk": 640,            # per litre
-    "yogurt": 600,          # per litre
-    "cheese": 90,           # per 25 g
-    "chicken": 165,         # per 100 g
-    "bread": 80,            # per slice
-    "bread_roll": 120,      # per roll
-    "hashbrown": 130,       # per unit
-    "pancake": 110,         # per unit
-    "fruit": 70,            # per piece
-    "oats": 150,            # per 40 g
-    "cereal": 120,          # per 30 g
-    "butter": 35,           # per 5 g
-    "milo": 120,            # per 200 ml
-    "jam": 20,              # per tsp
-    "maple_syrup": 18,      # per tsp
-    "choc_chips": 50,       # per tbsp
-    "berries": 40           # per 50 g
-}
-
-# --- 📏 Units for reporting clarity ---
-UNITS = {
-    "milk": "L",
-    "yogurt": "L",
-    "tea": "kg",
-    "bread": "slices",
-    "fruit": "pieces",
-    "oats": "servings",
-    "flour": "kg",
-    "eggs": "units",
-    "sugar": "kg",
-    "baking_powder": "kg",
-    "butter": "kg"
+    "milk": 640, "yogurt": 60, "cheese": 90, "chicken": 165,
+    "bread": 80, "bread_roll": 120, "hashbrown": 130, "pancake": 110,
+    "fruit": 70, "oats": 150, "cereal": 120, "butter": 35, "milo": 120,
+    "jam": 20, "maple_syrup": 18, "choc_chips": 50, "berries": 40
 }
 
 # -------------------------
@@ -74,13 +46,13 @@ UNITS = {
 @app.get("/")
 def home():
     """Check API status."""
-    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.3.0"}
+    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.4.0"}
 
 
 # --- 📅 Weekly Plan ---
 @app.get("/jit/plan")
 def plan(mon: int, tue: int, live: bool = False):
-    """Calculate weekly quantities and costs."""
+    """Calculate quantities and costs for Breakfast Club."""
     safety_margin = 1.10
 
     monday_items = {
@@ -89,7 +61,7 @@ def plan(mon: int, tue: int, live: bool = False):
         "bread": mon * 0.5,
         "fruit": mon * 1,
         "oats": mon * 1,
-        "yogurt": mon * 0.1  # litres (1L per 10 children)
+        "yogurt": mon * 1
     }
 
     t_factor = tue / 10
@@ -99,7 +71,7 @@ def plan(mon: int, tue: int, live: bool = False):
         "tea": tue * 0.02,
         "fruit": tue * 1,
         "oats": tue * 1,
-        "yogurt": tue * 0.1,  # litres
+        "yogurt": tue * 1,
         "flour": waffle["flour"] / 1000,
         "eggs": waffle["eggs"],
         "sugar": waffle["sugar"] / 1000,
@@ -119,30 +91,30 @@ def plan(mon: int, tue: int, live: bool = False):
     cheapest = min(totals, key=totals.get)
     week = date.today().strftime("%Y-%m-%d")
 
-    # --- Executive report text ---
-    report_text = f"""
-📊 WEEKLY BREAKFAST CLUB PLAN
-Week of {week}
+    email_subject = f"Breakfast Club – Weekly Shopping Plan (Week of {week})"
+    email_body = f"""To: mavisi036@gmail.com
+Subject: {email_subject}
 
-👧 Attendance Forecast:
+Hi team,
+
+This week's attendance assumption:
 - Monday: {mon} children
 - Tuesday: {tue} children
 
-🧾 Estimated Ingredient Quantities:
-Monday:
-{chr(10).join([f"  • {item.capitalize()}: {round(qty,2)} {UNITS.get(item,'')}" for item, qty in monday_items.items()])}
+Shopping list:
+- Monday: milk, tea, bread, fruit, oats, yogurt
+- Tuesday: milk, tea, fruit, oats, yogurt, waffles (homemade)
 
-Tuesday:
-{chr(10).join([f"  • {item.capitalize()}: {round(qty,2)} {UNITS.get(item,'')}" for item, qty in tuesday_items.items()])}
+Estimated costs (10% safety margin):
+- Pak'nSave: ${totals["Pak'nSave"]:.2f}
+- New World: ${totals["New World"]:.2f}
+- Countdown: ${totals["Countdown"]:.2f}
 
-💰 Cost Estimate (10% safety margin):
-- Pak'nSave: ${totals['Pak'nSave']:.2f}
-- New World: ${totals['New World']:.2f}
-- Countdown: ${totals['Countdown']:.2f}
+Cheapest option: {cheapest}
 
-🏆 Recommended Supplier: {cheapest}
+Please confirm or reply with changes.
 
-This plan aligns with NZ Ministry of Health nutritional guidelines (avg. 450 kcal/child/day).
+Thanks!
 """
 
     return {
@@ -151,5 +123,121 @@ This plan aligns with NZ Ministry of Health nutritional guidelines (avg. 450 kca
         "tuesday_items": tuesday_items,
         "totals": totals,
         "cheapest": cheapest,
+        "email": {"to": "mavisi036@gmail.com", "subject": email_subject, "body": email_body}
+    }
+
+
+# --- 🍽️ Record consumption and nutrition analysis ---
+@app.post("/jit/consumption")
+def record_consumption(data: Dict):
+    """Record daily consumption and calculate caloric balance."""
+    day = data.get("day", "unspecified").capitalize()
+    children = data.get("children", 0)
+    items = data.get("items", {})
+
+    expected_total_kcal = children * EXPECTED_KCAL_PER_CHILD
+    actual_total_kcal = 0
+    detail = {}
+
+    for food, qty in items.items():
+        kcal_per_unit = CALORIES.get(food, 0)
+        kcal_total = qty * kcal_per_unit
+        detail[food] = {"quantity": qty, "kcal_each": kcal_per_unit, "kcal_total": kcal_total}
+        actual_total_kcal += kcal_total
+
+    avg_per_child = actual_total_kcal / children if children > 0 else 0
+    percent_of_target = (avg_per_child / EXPECTED_KCAL_PER_CHILD * 100) if children > 0 else 0
+
+    return {
+        "day": day,
+        "children": children,
+        "expected_total_kcal": round(expected_total_kcal, 1),
+        "actual_total_kcal": round(actual_total_kcal, 1),
+        "average_per_child": round(avg_per_child, 1),
+        "percent_of_target": round(percent_of_target, 1),
+        "details": detail
+    }
+
+
+# --- 🧾 Executive Weekly Report ---
+@app.post("/jit/report")
+def generate_report(payload: Dict):
+    """
+    Combines planning data with real consumption to produce an executive weekly report.
+    """
+    mon = payload.get("mon", 0)
+    tue = payload.get("tue", 0)
+    actual = payload.get("actual", {})
+
+    week = date.today().strftime("%Y-%m-%d")
+    expected_children = mon + tue
+    actual_children = (actual.get("monday", {}).get("children", 0)
+                       + actual.get("tuesday", {}).get("children", 0))
+
+    expected_kcal = expected_children * EXPECTED_KCAL_PER_CHILD
+    total_real_kcal = 0
+    details = {}
+
+    for day, data in actual.items():
+        items = data.get("items", {})
+        children = data.get("children", 0)
+        total_day_kcal = 0
+        detail_day = {}
+
+        for item, qty in items.items():
+            kcal_each = CALORIES.get(item, 0)
+            kcal_total = kcal_each * qty
+            total_day_kcal += kcal_total
+            detail_day[item] = {
+                "quantity": qty,
+                "kcal_each": kcal_each,
+                "kcal_total": kcal_total
+            }
+
+        details[day] = {
+            "children": children,
+            "total_kcal": total_day_kcal,
+            "average_per_child": round(total_day_kcal / children, 1) if children else 0,
+            "details": detail_day
+        }
+        total_real_kcal += total_day_kcal
+
+    avg_kcal_per_child = round(total_real_kcal / actual_children, 1) if actual_children else 0
+    percent_of_target = round((avg_kcal_per_child / EXPECTED_KCAL_PER_CHILD * 100), 1) if actual_children else 0
+
+    report_text = f"""
+📅 WEEKLY EXECUTIVE REPORT – Breakfast Club
+Week of {week}
+
+👧 Attendance Summary:
+- Estimated: {expected_children} (Mon {mon} / Tue {tue})
+- Actual: {actual_children} (Mon {actual.get('monday', {}).get('children', 0)} / Tue {actual.get('tuesday', {}).get('children', 0)})
+
+🍽 Energy Balance:
+- Expected total: {expected_kcal:,} kcal
+- Actual total: {total_real_kcal:,} kcal
+- Average per child: {avg_kcal_per_child} kcal
+- Target achievement: {percent_of_target}% of 450 kcal guideline
+
+📊 Daily Breakdown:
+{''.join([f"  - {day.capitalize()}: {round(data['average_per_child'],1)} kcal/child, {round(data['total_kcal'],1)} kcal total\\n" for day, data in details.items()])}
+
+✅ Summary:
+This week’s energy intake achieved {percent_of_target}% of the NZ Ministry of Health breakfast target.
+Menu consistency and portion control appear {'adequate' if percent_of_target > 90 else 'below target'}.
+
+🧾 Recommended Next Step:
+Review perishable stock rotation and confirm cost data via /jit/plan for next week’s forecast.
+"""
+
+    return {
+        "week": week,
+        "expected_children": expected_children,
+        "actual_children": actual_children,
+        "expected_kcal_total": expected_kcal,
+        "actual_kcal_total": total_real_kcal,
+        "average_per_child": avg_kcal_per_child,
+        "percent_of_target": percent_of_target,
+        "details": details,
         "executive_summary": report_text
     }
