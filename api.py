@@ -1,8 +1,22 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
 from typing import Dict
 
 app = FastAPI(title="Breakfast Club Planner", version="1.4.0")
+
+# --- 🌐 Enable CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Frontend local (Vite)
+        "https://breakfast-dashboard.onrender.com",  # Optional: production frontend
+        "*"  # Allow all origins during testing
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- 💰 Base Prices (NZD) ---
 PRICES = {
@@ -162,9 +176,7 @@ def record_consumption(data: Dict):
 # --- 🧾 Executive Weekly Report ---
 @app.post("/jit/report")
 def generate_report(payload: Dict):
-    """
-    Combines planning data with real consumption to produce an executive weekly report.
-    """
+    """Combines planning data with real consumption to produce an executive weekly report."""
     mon = payload.get("mon", 0)
     tue = payload.get("tue", 0)
     actual = payload.get("actual", {})
