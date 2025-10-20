@@ -4,7 +4,7 @@ from typing import Dict
 
 app = FastAPI(title="Breakfast Club Planner", version="1.2.0")
 
-# --- 💰 Precios base (NZD) ---
+# --- 💰 Base Prices (NZD) ---
 PRICES = {
     "milk": {"Pak'nSave": 2.20, "New World": 2.30, "Countdown": 2.40},
     "tea": {"Pak'nSave": 6.29, "New World": 6.49, "Countdown": 6.59},
@@ -19,7 +19,7 @@ PRICES = {
     "butter": {"Pak'nSave": 5.00, "New World": 5.50, "Countdown": 5.80}
 }
 
-# --- 🧇 Receta de waffles (por cada 10 niños) ---
+# --- 🧇 Waffle Recipe (per 10 children) ---
 WAFFLE_RECIPE = {
     "flour": 500,
     "eggs": 4,
@@ -29,7 +29,7 @@ WAFFLE_RECIPE = {
     "butter": 50
 }
 
-# --- 🔹 Calorías y nutrición ---
+# --- 🔹 Nutrition & Calories ---
 EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health guideline
 
 CALORIES = {
@@ -157,37 +157,12 @@ def record_consumption(data: Dict):
         "percent_of_target": round(percent_of_target, 1),
         "details": detail
     }
-from fastapi import FastAPI
-from datetime import date
-from typing import Dict
 
-app = FastAPI(title="Breakfast Club Planner", version="1.2.0")
 
-EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health recommendation
-
-CALORIES = {
-    "milk": 640, "yogurt": 60, "cheese": 90, "chicken": 165,
-    "bread": 80, "bread_roll": 120, "hashbrown": 130, "pancake": 110,
-    "fruit": 70, "oats": 150, "cereal": 120, "butter": 35,
-    "milo": 120, "jam": 20, "maple_syrup": 18, "choc_chips": 50, "berries": 40
-}
-
-# --- EXISTING ROUTES (keep your /, /jit/plan, /jit/consumption) ---
-
+# --- 📊 Executive Weekly Report ---
 @app.post("/jit/report")
 def generate_report(payload: Dict):
-    """
-    Combines planning data with real consumption to produce an executive weekly report.
-    Example input:
-    {
-      "mon": 40,
-      "tue": 43,
-      "actual": {
-        "monday": {"children": 38, "items": {"milk": 9, "bread": 20, "yogurt": 3, "fruit": 25}},
-        "tuesday": {"children": 45, "items": {"milk": 10, "bread": 22, "yogurt": 4, "fruit": 30, "flour": 1.8}}
-      }
-    }
-    """
+    """Combine planning and real consumption to produce an executive weekly report."""
     mon = payload.get("mon", 0)
     tue = payload.get("tue", 0)
     actual = payload.get("actual", {})
@@ -197,10 +172,8 @@ def generate_report(payload: Dict):
     actual_children = (actual.get("monday", {}).get("children", 0)
                        + actual.get("tuesday", {}).get("children", 0))
 
-    # --- Calculate expected kcal total ---
     expected_kcal = expected_children * EXPECTED_KCAL_PER_CHILD
 
-    # --- Calculate real kcal based on consumption ---
     total_real_kcal = 0
     details = {}
     for day, data in actual.items():
@@ -213,11 +186,7 @@ def generate_report(payload: Dict):
             kcal_each = CALORIES.get(item, 0)
             kcal_total = kcal_each * qty
             total_day_kcal += kcal_total
-            detail_day[item] = {
-                "quantity": qty,
-                "kcal_each": kcal_each,
-                "kcal_total": kcal_total
-            }
+            detail_day[item] = {"quantity": qty, "kcal_each": kcal_each, "kcal_total": kcal_total}
 
         details[day] = {
             "children": children,
@@ -230,7 +199,6 @@ def generate_report(payload: Dict):
     avg_kcal_per_child = round(total_real_kcal / actual_children, 1) if actual_children else 0
     percent_of_target = round((avg_kcal_per_child / EXPECTED_KCAL_PER_CHILD * 100), 1) if actual_children else 0
 
-    # --- Executive summary text ---
     report_text = f"""
 📅 WEEKLY EXECUTIVE REPORT – Breakfast Club
 Week of {week}
@@ -250,7 +218,7 @@ Week of {week}
 
 ✅ Summary:
 This week’s energy intake achieved {percent_of_target}% of the NZ Ministry of Health breakfast target.
-Menu consistency and portion control appear { 'adequate' if percent_of_target > 90 else 'below target' }.
+Menu consistency and portion control appear {'adequate' if percent_of_target > 90 else 'below target'}.
 
 🧾 Recommended Next Step:
 Review perishable stock rotation and confirm cost data via /jit/plan for next week’s forecast.
