@@ -157,3 +157,113 @@ def record_consumption(data: Dict):
         "percent_of_target": round(percent_of_target, 1),
         "details": detail
     }
+from fastapi import FastAPI
+from datetime import date
+from typing import Dict
+
+app = FastAPI(title="Breakfast Club Planner", version="1.2.0")
+
+EXPECTED_KCAL_PER_CHILD = 450  # NZ Ministry of Health recommendation
+
+CALORIES = {
+    "milk": 640, "yogurt": 60, "cheese": 90, "chicken": 165,
+    "bread": 80, "bread_roll": 120, "hashbrown": 130, "pancake": 110,
+    "fruit": 70, "oats": 150, "cereal": 120, "butter": 35,
+    "milo": 120, "jam": 20, "maple_syrup": 18, "choc_chips": 50, "berries": 40
+}
+
+# --- EXISTING ROUTES (keep your /, /jit/plan, /jit/consumption) ---
+
+@app.post("/jit/report")
+def generate_report(payload: Dict):
+    """
+    Combines planning data with real consumption to produce an executive weekly report.
+    Example input:
+    {
+      "mon": 40,
+      "tue": 43,
+      "actual": {
+        "monday": {"children": 38, "items": {"milk": 9, "bread": 20, "yogurt": 3, "fruit": 25}},
+        "tuesday": {"children": 45, "items": {"milk": 10, "bread": 22, "yogurt": 4, "fruit": 30, "flour": 1.8}}
+      }
+    }
+    """
+    mon = payload.get("mon", 0)
+    tue = payload.get("tue", 0)
+    actual = payload.get("actual", {})
+
+    week = date.today().strftime("%Y-%m-%d")
+    expected_children = mon + tue
+    actual_children = (actual.get("monday", {}).get("children", 0)
+                       + actual.get("tuesday", {}).get("children", 0))
+
+    # --- Calculate expected kcal total ---
+    expected_kcal = expected_children * EXPECTED_KCAL_PER_CHILD
+
+    # --- Calculate real kcal based on consumption ---
+    total_real_kcal = 0
+    details = {}
+    for day, data in actual.items():
+        items = data.get("items", {})
+        children = data.get("children", 0)
+        total_day_kcal = 0
+        detail_day = {}
+
+        for item, qty in items.items():
+            kcal_each = CALORIES.get(item, 0)
+            kcal_total = kcal_each * qty
+            total_day_kcal += kcal_total
+            detail_day[item] = {
+                "quantity": qty,
+                "kcal_each": kcal_each,
+                "kcal_total": kcal_total
+            }
+
+        details[day] = {
+            "children": children,
+            "total_kcal": total_day_kcal,
+            "average_per_child": round(total_day_kcal / children, 1) if children else 0,
+            "details": detail_day
+        }
+        total_real_kcal += total_day_kcal
+
+    avg_kcal_per_child = round(total_real_kcal / actual_children, 1) if actual_children else 0
+    percent_of_target = round((avg_kcal_per_child / EXPECTED_KCAL_PER_CHILD * 100), 1) if actual_children else 0
+
+    # --- Executive summary text ---
+    report_text = f"""
+📅 WEEKLY EXECUTIVE REPORT – Breakfast Club
+Week of {week}
+
+👧 Attendance Summary:
+- Estimated: {expected_children} (Mon {mon} / Tue {tue})
+- Actual: {actual_children} (Mon {actual.get('monday', {}).get('children', 0)} / Tue {actual.get('tuesday', {}).get('children', 0)})
+
+🍽 Energy Balance:
+- Expected total: {expected_kcal:,} kcal
+- Actual total: {total_real_kcal:,} kcal
+- Average per child: {avg_kcal_per_child} kcal
+- Target achievement: {percent_of_target}% of 450 kcal guideline
+
+📊 Daily Breakdown:
+{''.join([f"  - {day.capitalize()}: {round(data['average_per_child'],1)} kcal/child, {round(data['total_kcal'],1)} kcal total\n" for day, data in details.items()])}
+
+✅ Summary:
+This week’s energy intake achieved {percent_of_target}% of the NZ Ministry of Health breakfast target.
+Menu consistency and portion control appear { 'adequate' if percent_of_target > 90 else 'below target' }.
+
+🧾 Recommended Next Step:
+Review perishable stock rotation and confirm cost data via /jit/plan for next week’s forecast.
+"""
+
+    return {
+        "week": week,
+        "expected_children": expected_children,
+        "actual_children": actual_children,
+        "expected_kcal_total": expected_kcal,
+        "actual_kcal_total": total_real_kcal,
+        "average_per_child": avg_kcal_per_child,
+        "percent_of_target": percent_of_target,
+        "details": details,
+        "executive_summary": report_text
+    }
