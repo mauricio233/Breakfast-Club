@@ -1,9 +1,11 @@
+# app.py — Breakfast Club Planner API (v1.6.0)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
 from typing import Dict
 
-app = FastAPI(title="Breakfast Club Planner", version="1.5.0")
+app = FastAPI(title="Breakfast Club Planner", version="1.6.0")
 
 # --- 🌐 Enable CORS ---
 app.add_middleware(
@@ -73,7 +75,7 @@ CALORIES = {
 
 @app.get("/")
 def home():
-    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.5.0"}
+    return {"message": "✅ Breakfast Club Planner API is running", "version": "1.6.0"}
 
 
 # --- 📅 Weekly Plan ---
@@ -105,21 +107,35 @@ def plan(mon: int, tue: int, live: bool = False):
         "flour": waffle["flour"] / 1000,
         "eggs": waffle["eggs"],
         "sugar": waffle["sugar"] / 1000,
-        "baking_powder": waffle["baking_powder"] / 10,  # 🔧 adjusted scale
-        "butter": waffle["butter"] / 50,  # 🔧 adjusted scale
-        "milo": tue * 0.02,  # 🆕 added Milo (kg)
+        "baking_powder": waffle["baking_powder"] / 10,
+        "butter": waffle["butter"] / 50,
+        "milo": tue * 0.02,
     }
 
     # Apply safety margin
     monday_items = {k: v * safety_margin for k, v in monday_items.items()}
     tuesday_items = {k: v * safety_margin for k, v in tuesday_items.items()}
 
+    # --- Combine items ---
+    combined_items = {k: monday_items.get(k, 0) + tuesday_items.get(k, 0) for k in set(monday_items) | set(tuesday_items)}
+
     # --- Totals per supermarket ---
     totals = {store: 0 for store in ["Pak'nSave", "New World", "Countdown"]}
     for store in totals:
-        for item, qty in {**monday_items, **tuesday_items}.items():
+        for item, qty in combined_items.items():
             if item in PRICES:
                 totals[store] += PRICES[item][store] * qty
+
+    # --- Build per-product breakdown (🆕 ADDED) ---
+    products = {}
+    for item, prices in PRICES.items():
+        products[item] = {}
+        for store, price in prices.items():
+            products[item][store] = {
+                "price": round(price, 2),
+                "qty": round(combined_items.get(item, 0), 2),
+                "subtotal": round(price * combined_items.get(item, 0), 2),
+            }
 
     cheapest = min(totals, key=totals.get)
     week = date.today().strftime("%Y-%m-%d")
@@ -156,6 +172,7 @@ Thanks!
         "tuesday_items": tuesday_items,
         "totals": totals,
         "cheapest": cheapest,
+        "products": products,  # ✅ Now frontend gets real product data
         "email": {
             "to": "mavisi036@gmail.com",
             "subject": email_subject,
